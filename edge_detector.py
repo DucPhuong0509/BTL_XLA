@@ -1,6 +1,8 @@
 # edge_detector.py - Phát hiện biên đã được tối ưu hóa
 import numpy as np
-from typing import Tuple, Optional
+from typing import Optional
+from grayscale import to_grayscale
+from filter import gaussian_blur, convolve2d
 
 
 def sobel_edge_detection(image: np.ndarray, blur_sigma: float = 1.0, 
@@ -25,10 +27,6 @@ def sobel_edge_detection(image: np.ndarray, blur_sigma: float = 1.0,
         Ảnh biên (grayscale, 0-255)
         - Giá trị cao (sáng): biên mạnh
         - Giá trị thấp (tối): không có biên
-    
-    Examples:
-        >>> edges = sobel_edge_detection(image, blur_sigma=0.8)
-        >>> edges_strong = sobel_edge_detection(image, threshold=50)
     """
     # Chuyển sang ảnh xám nếu cần
     if image.ndim == 3:
@@ -52,8 +50,8 @@ def sobel_edge_detection(image: np.ndarray, blur_sigma: float = 1.0,
                         [ 1,  2,  1]], dtype=np.float32)
     
     # Tính gradient theo 2 hướng
-    gradient_x = convolve2d_fast(smoothed.astype(np.float32), sobel_x)
-    gradient_y = convolve2d_fast(smoothed.astype(np.float32), sobel_y)
+    gradient_x = convolve2d(smoothed.astype(np.float32), sobel_x)
+    gradient_y = convolve2d(smoothed.astype(np.float32), sobel_y)
     
     # Tính độ lớn gradient (magnitude)
     gradient_magnitude = np.sqrt(gradient_x**2 + gradient_y**2)
@@ -70,28 +68,12 @@ def sobel_edge_detection(image: np.ndarray, blur_sigma: float = 1.0,
 
 
 def sobel_edge_detection_fast(image: np.ndarray, blur_sigma: float = 0.8) -> np.ndarray:
-    """
-    Phát hiện biên Sobel TỐI ƯU TỐC ĐỘ - alias cho hàm chính.
     
-    Đây là alias của sobel_edge_detection() với tham số mặc định tối ưu.
-    """
     return sobel_edge_detection(image, blur_sigma=blur_sigma)
 
 
 def prewitt_edge_detection(image: np.ndarray, blur_sigma: float = 1.0) -> np.ndarray:
-    """
-    Phát hiện biên sử dụng toán tử Prewitt.
     
-    Prewitt tương tự Sobel nhưng kernel đơn giản hơn (không có trọng số).
-    Kết quả gần giống Sobel nhưng nhạy cảm hơn với nhiễu.
-    
-    Args:
-        image: Ảnh đầu vào
-        blur_sigma: Độ mịn trước khi phát hiện
-    
-    Returns:
-        Ảnh biên
-    """
     if image.ndim == 3:
         gray = to_grayscale(image)
     else:
@@ -111,8 +93,8 @@ def prewitt_edge_detection(image: np.ndarray, blur_sigma: float = 1.0) -> np.nda
                           [ 0,  0,  0],
                           [ 1,  1,  1]], dtype=np.float32)
     
-    gradient_x = convolve2d_fast(smoothed.astype(np.float32), prewitt_x)
-    gradient_y = convolve2d_fast(smoothed.astype(np.float32), prewitt_y)
+    gradient_x = convolve2d(smoothed.astype(np.float32), prewitt_x)
+    gradient_y = convolve2d(smoothed.astype(np.float32), prewitt_y)
     
     gradient_magnitude = np.sqrt(gradient_x**2 + gradient_y**2)
     
@@ -125,30 +107,7 @@ def prewitt_edge_detection(image: np.ndarray, blur_sigma: float = 1.0) -> np.nda
 def canny_edge_detection(image: np.ndarray, low_threshold: float = 50, 
                         high_threshold: float = 150, 
                         blur_sigma: float = 1.4) -> np.ndarray:
-    """
-    Phát hiện biên Canny - CHẤT LƯỢNG CAO NHẤT nhưng phức tạp.
     
-    Canny là thuật toán phát hiện biên tốt nhất với 4 bước:
-    1. Làm mịn Gaussian để giảm nhiễu
-    2. Tính gradient và hướng
-    3. Non-maximum suppression: làm mỏng biên
-    4. Double thresholding: lọc biên yếu
-    
-    Args:
-        image: Ảnh đầu vào
-        low_threshold: Ngưỡng thấp (30-80)
-                       - Pixel > low: biên yếu (candidate)
-        high_threshold: Ngưỡng cao (100-200)
-                        - Pixel > high: biên mạnh (confirmed)
-        blur_sigma: Độ mịn Gaussian (1.0-2.0)
-    
-    Returns:
-        Ảnh biên nhị phân (0 hoặc 255)
-    
-    Notes:
-        Canny cho kết quả sắc nét nhất nhưng CHẬM nhất.
-        Dùng cho ảnh cần biên rất rõ ràng.
-    """
     if image.ndim == 3:
         gray = to_grayscale(image)
     else:
@@ -166,8 +125,8 @@ def canny_edge_detection(image: np.ndarray, low_threshold: float = 50,
                         [ 0,  0,  0],
                         [ 1,  2,  1]], dtype=np.float32)
     
-    gradient_x = convolve2d_fast(smoothed.astype(np.float32), sobel_x)
-    gradient_y = convolve2d_fast(smoothed.astype(np.float32), sobel_y)
+    gradient_x = convolve2d(smoothed.astype(np.float32), sobel_x)
+    gradient_y = convolve2d(smoothed.astype(np.float32), sobel_y)
     
     gradient_magnitude = np.sqrt(gradient_x**2 + gradient_y**2)
     gradient_direction = np.arctan2(gradient_y, gradient_x)
@@ -183,19 +142,7 @@ def canny_edge_detection(image: np.ndarray, low_threshold: float = 50,
 
 def non_maximum_suppression(gradient_magnitude: np.ndarray, 
                            gradient_direction: np.ndarray) -> np.ndarray:
-    """
-    Non-maximum suppression - Làm mỏng biên.
     
-    Chỉ giữ lại pixel có gradient_magnitude lớn nhất theo hướng gradient.
-    Kết quả: biên mỏng 1 pixel.
-    
-    Args:
-        gradient_magnitude: Độ lớn gradient
-        gradient_direction: Hướng gradient (radian)
-    
-    Returns:
-        Ảnh biên đã làm mỏng
-    """
     h, w = gradient_magnitude.shape
     suppressed = np.zeros_like(gradient_magnitude)
     
@@ -235,21 +182,7 @@ def non_maximum_suppression(gradient_magnitude: np.ndarray,
 
 def double_threshold(image: np.ndarray, low_threshold: float, 
                     high_threshold: float) -> np.ndarray:
-    """
-    Double thresholding và edge tracking by hysteresis.
-    
-    - Strong edges: pixel > high_threshold → giữ lại
-    - Weak edges: low_threshold < pixel < high_threshold → giữ nếu nối với strong edge
-    - Non-edges: pixel < low_threshold → loại bỏ
-    
-    Args:
-        image: Ảnh biên đã NMS
-        low_threshold: Ngưỡng thấp
-        high_threshold: Ngưỡng cao
-    
-    Returns:
-        Ảnh biên nhị phân (0 hoặc 255)
-    """
+
     h, w = image.shape
     
     # Phân loại pixel
@@ -278,19 +211,7 @@ def double_threshold(image: np.ndarray, low_threshold: float,
 
 
 def laplacian_edge_detection(image: np.ndarray, blur_sigma: float = 1.0) -> np.ndarray:
-    """
-    Phát hiện biên sử dụng Laplacian (đạo hàm bậc 2).
-    
-    Laplacian phát hiện vùng thay đổi nhanh về cường độ.
-    Nhạy cảm với nhiễu hơn Sobel.
-    
-    Args:
-        image: Ảnh đầu vào
-        blur_sigma: Độ mịn trước khi phát hiện
-    
-    Returns:
-        Ảnh biên
-    """
+
     if image.ndim == 3:
         gray = to_grayscale(image)
     else:
@@ -306,7 +227,7 @@ def laplacian_edge_detection(image: np.ndarray, blur_sigma: float = 1.0) -> np.n
                          [1, -4, 1],
                          [0,  1, 0]], dtype=np.float32)
     
-    edges = convolve2d_fast(smoothed.astype(np.float32), laplacian)
+    edges = convolve2d(smoothed.astype(np.float32), laplacian)
     
     # Lấy giá trị tuyệt đối
     edges = np.abs(edges)
@@ -318,67 +239,8 @@ def laplacian_edge_detection(image: np.ndarray, blur_sigma: float = 1.0) -> np.n
     return np.clip(edges, 0, 255).astype(np.uint8)
 
 
-# ============================================================
-# HÀM HỖ TRỢ
-# ============================================================
-
-def convolve2d_fast(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
-    """
-    Convolution 2D tối ưu cho kernel 3x3.
-    
-    Args:
-        image: Ảnh đầu vào (2D float array)
-        kernel: Kernel 3x3
-    
-    Returns:
-        Ảnh sau convolution
-    """
-    h, w = image.shape
-    output = np.zeros_like(image, dtype=np.float32)
-    
-    # Padding với chế độ reflect
-    padded = np.pad(image, 1, mode='reflect')
-    
-    # Convolution
-    for i in range(h):
-        for j in range(w):
-            region = padded[i:i+3, j:j+3]
-            output[i, j] = np.sum(region * kernel)
-    
-    return output
-
-
-def to_grayscale(image: np.ndarray) -> np.ndarray:
-    """
-    Chuyển ảnh màu sang ảnh xám sử dụng công thức luminance chuẩn ITU-R BT.601.
-    
-    Args:
-        image: Ảnh RGB hoặc RGBA
-    
-    Returns:
-        Ảnh xám
-    """
-    if image.ndim == 3 and image.shape[2] >= 3:
-        # Sử dụng trọng số chuẩn: Red=0.299, Green=0.587, Blue=0.114
-        gray = np.dot(image[..., :3], [0.299, 0.587, 0.114])
-    else:
-        gray = image.copy()
-    
-    return np.clip(gray, 0, 255).astype(np.uint8)
-
-
 def gaussian_blur(image: np.ndarray, size: int = 5, sigma: float = 1.0) -> np.ndarray:
-    """
-    Làm mịn ảnh bằng Gaussian blur.
     
-    Args:
-        image: Ảnh xám đầu vào
-        size: Kích thước kernel (số lẻ)
-        sigma: Độ lệch chuẩn
-    
-    Returns:
-        Ảnh đã làm mịn
-    """
     # Đảm bảo size là số lẻ
     if size % 2 == 0:
         size += 1

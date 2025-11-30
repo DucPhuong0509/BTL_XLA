@@ -1,26 +1,9 @@
-# filter.py - Các bộ lọc ảnh tự viết hoàn toàn: Gaussian và Bilateral
+# filter.py - Các bộ lọc ảnh
 import numpy as np
 
 
 def get_gaussian_kernel(size: int, sigma: float) -> np.ndarray:
-    """
-    Tạo kernel Gaussian 2D chuẩn hóa.
-    
-    Args:
-        size: Kích thước kernel (số lẻ, ví dụ: 3, 5, 7)
-        sigma: Độ lệch chuẩn (standard deviation)
-               - sigma nhỏ: blur ít, giữ chi tiết
-               - sigma lớn: blur nhiều, mất chi tiết
-    
-    Returns:
-        Kernel Gaussian 2D đã chuẩn hóa (tổng = 1)
-    
-    Examples:
-        >>> kernel = get_gaussian_kernel(5, 1.0)
-        >>> kernel.shape
-        (5, 5)
-        >>> np.sum(kernel)  # Gần bằng 1.0
-    """
+
     # Đảm bảo kích thước là số lẻ
     if size % 2 == 0:
         size += 1
@@ -39,24 +22,7 @@ def get_gaussian_kernel(size: int, sigma: float) -> np.ndarray:
 
 
 def gaussian_blur(image: np.ndarray, size: int = 5, sigma: float = 1.0) -> np.ndarray:
-    """
-    Làm mịn ảnh bằng bộ lọc Gaussian - Blur đồng đều toàn bộ ảnh.
-    
-    Args:
-        image: Ảnh đầu vào (grayscale hoặc RGB)
-        size: Kích thước kernel (số lẻ, 3-25)
-              - Nhỏ (3-5): blur nhẹ
-              - Trung bình (7-11): blur vừa
-              - Lớn (13-25): blur mạnh
-        sigma: Độ lệch chuẩn (0.5-5.0)
-    
-    Returns:
-        Ảnh đã làm mịn
-    
-    Notes:
-        Gaussian blur làm mịn đồng đều cả vùng chi tiết và vùng phẳng.
-        Không bảo toàn biên như Bilateral filter.
-    """
+
     # Tạo kernel Gaussian
     kernel = get_gaussian_kernel(size, sigma)
     
@@ -76,32 +42,7 @@ def gaussian_blur(image: np.ndarray, size: int = 5, sigma: float = 1.0) -> np.nd
 
 def bilateral_filter(image: np.ndarray, diameter: int = 9, 
                     sigma_color: float = 75.0, sigma_space: float = 75.0) -> np.ndarray:
-    """
-    Bộ lọc Bilateral - Làm mịn NHƯNG BẢO TOÀN BIÊN.
     
-    Bilateral filter kết hợp 2 yếu tố:
-    1. Khoảng cách không gian (spatial distance)
-    2. Độ khác biệt màu/cường độ (color/intensity difference)
-    
-    Args:
-        image: Ảnh đầu vào (grayscale hoặc RGB)
-        diameter: Đường kính vùng lân cận (5-25)
-                  - Nhỏ (5-9): nhanh, ít mịn
-                  - Lớn (15-25): chậm, rất mịn
-        sigma_color: Độ nhạy màu (10-150)
-                     - Nhỏ (10-50): giữ biên mạnh, ít mịn vùng phẳng
-                     - Lớn (80-150): giữ biên vừa, mịn vùng phẳng nhiều
-        sigma_space: Độ ảnh hưởng không gian (10-150)
-                     - Tương tự sigma_color
-    
-    Returns:
-        Ảnh đã lọc với biên được bảo toàn
-    
-    Notes:
-        - Bilateral filter CHẬM hơn Gaussian blur rất nhiều
-        - Thích hợp cho portrait, làm mịn da giữ chi tiết mắt/môi
-        - Dùng cho sketch để giữ đường nét rõ ràng
-    """
     # Đảm bảo diameter là số lẻ
     if diameter % 2 == 0:
         diameter += 1
@@ -124,18 +65,7 @@ def bilateral_filter(image: np.ndarray, diameter: int = 9,
 
 def bilateral_filter_gray(image: np.ndarray, radius: int, 
                          space_kernel: np.ndarray, sigma_color: float) -> np.ndarray:
-    """
-    Bilateral filter cho ảnh xám - TỐI ƯU HÓA.
-    
-    Args:
-        image: Ảnh xám
-        radius: Bán kính vùng lân cận
-        space_kernel: Kernel không gian đã tính sẵn
-        sigma_color: Độ nhạy màu
-    
-    Returns:
-        Ảnh đã lọc
-    """
+
     h, w = image.shape
     result = np.zeros_like(image, dtype=np.float32)
     
@@ -190,19 +120,7 @@ def bilateral_filter_gray(image: np.ndarray, radius: int,
 def bilateral_filter_rgb(image: np.ndarray, radius: int,
                         space_kernel: np.ndarray, sigma_color: float,
                         sigma_space: float) -> np.ndarray:
-    """
-    Bilateral filter cho ảnh màu RGB - TỐI ƯU HÓA.
-    
-    Args:
-        image: Ảnh RGB
-        radius: Bán kính vùng lân cận
-        space_kernel: Kernel không gian đã tính sẵn
-        sigma_color: Độ nhạy màu
-        sigma_space: Độ ảnh hưởng không gian
-    
-    Returns:
-        Ảnh đã lọc
-    """
+
     h, w, c = image.shape
     result = np.zeros_like(image, dtype=np.float32)
     
@@ -256,16 +174,7 @@ def bilateral_filter_rgb(image: np.ndarray, radius: int,
 
 
 def interpolate_missing_pixels(image: np.ndarray, step: int) -> np.ndarray:
-    """
-    Nội suy các pixel bị bỏ qua khi xử lý với step > 1.
-    
-    Args:
-        image: Ảnh có các pixel bị thiếu
-        step: Khoảng cách giữa các pixel đã xử lý
-    
-    Returns:
-        Ảnh đã được nội suy đầy đủ
-    """
+
     h, w = image.shape
     result = image.copy()
     
@@ -289,19 +198,7 @@ def interpolate_missing_pixels(image: np.ndarray, step: int) -> np.ndarray:
 
 
 def convolve2d(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
-    """
-    Thực hiện convolution 2D cơ bản.
-    
-    Args:
-        image: Ảnh đầu vào (2D array)
-        kernel: Kernel convolution
-    
-    Returns:
-        Ảnh sau convolution
-    
-    Notes:
-        Sử dụng reflect padding để tránh hiệu ứng viền.
-    """
+
     img_h, img_w = image.shape
     kernel_h, kernel_w = kernel.shape
     
@@ -324,19 +221,7 @@ def convolve2d(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
 
 
 def box_blur(image: np.ndarray, size: int = 5) -> np.ndarray:
-    """
-    Box blur (Mean filter) - Blur nhanh nhưng chất lượng thấp hơn Gaussian.
-    
-    Args:
-        image: Ảnh đầu vào
-        size: Kích thước kernel (số lẻ)
-    
-    Returns:
-        Ảnh đã blur
-    
-    Notes:
-        Box blur nhanh hơn Gaussian blur nhưng kết quả kém mịn hơn.
-    """
+
     if size % 2 == 0:
         size += 1
     
@@ -354,20 +239,7 @@ def box_blur(image: np.ndarray, size: int = 5) -> np.ndarray:
 
 
 def median_filter(image: np.ndarray, size: int = 5) -> np.ndarray:
-    """
-    Median filter - Tốt cho loại bỏ salt-and-pepper noise.
     
-    Args:
-        image: Ảnh đầu vào
-        size: Kích thước kernel (số lẻ)
-    
-    Returns:
-        Ảnh đã lọc
-    
-    Notes:
-        Median filter rất tốt cho loại bỏ nhiễu điểm nhưng CHẬM.
-        Bảo toàn biên tốt.
-    """
     if size % 2 == 0:
         size += 1
     

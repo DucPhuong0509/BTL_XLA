@@ -39,39 +39,3 @@ def to_grayscale(image: np.ndarray) -> np.ndarray:
     
     # Đảm bảo giá trị trong khoảng [0, 255]
     return np.clip(gray, 0, 255).astype(np.uint8)
-
-
-def weighted_grayscale(image: np.ndarray, weights: list = None) -> np.ndarray:
-    """
-    Chuyển ảnh xám với trọng số tùy chỉnh (nếu cần thử nghiệm).
-    
-    Args:
-        image: Ảnh màu RGB
-        weights: Danh sách trọng số [R, G, B], mặc định [0.299, 0.587, 0.114]
-    
-    Returns:
-        Ảnh xám
-    
-    Examples:
-        >>> # Tăng ảnh hưởng kênh đỏ (cho ảnh sketch đặc biệt)
-        >>> gray = weighted_grayscale(image, weights=[0.5, 0.3, 0.2])
-    """
-    # Nếu không có weights, dùng chuẩn
-    if weights is None:
-        weights = [0.299, 0.587, 0.114]
-    
-    # Kiểm tra weights hợp lệ
-    if len(weights) != 3:
-        raise ValueError("weights phải có đúng 3 giá trị [R, G, B]")
-    
-    # Nếu đã là ảnh xám
-    if image.ndim == 2:
-        return image.copy()
-    
-    # Chuyển đổi với weights
-    if image.ndim == 3 and image.shape[2] >= 3:
-        gray = np.dot(image[..., :3], weights)
-    else:
-        raise ValueError(f"Ảnh không hợp lệ. Shape: {image.shape}")
-    
-    return np.clip(gray, 0, 255).astype(np.uint8)

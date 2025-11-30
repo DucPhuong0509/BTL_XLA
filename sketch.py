@@ -1,14 +1,14 @@
-# sketch.py - Các hiệu ứng vẽ tay TỐI ƯU TỐC ĐỘ
+# sketch.py - Các hiệu ứng vẽ tay
 import numpy as np
 from scipy.ndimage import convolve
+from grayscale import to_grayscale
+from filter import box_blur, gaussian_blur
+from edge_detector import sobel_edge_detection
 
 
 def create_hand_drawn_sketch(image: np.ndarray, diameter: int = 9, 
                            edge_strength: float = 1.0,
                            progress_callback: callable = None) -> np.ndarray:
-    """
-    Tạo hiệu ứng vẽ tay - PHIÊN BẢN TỐI ƯU TỐC ĐỘ
-    """
     total_steps = 4
     current_step = 0
     
@@ -18,43 +18,49 @@ def create_hand_drawn_sketch(image: np.ndarray, diameter: int = 9,
             progress_callback(current_step, total_steps, message)
         current_step += 1
     
-    # Bước 1: Chuyển ảnh xám
+    # Bước 1: Chuyển ảnh xám 
     update_progress("Đang chuẩn bị ảnh...")
     if image.ndim == 3:
-        gray_image = balanced_grayscale(image)
+        gray_image = to_grayscale(image)
     else:
         gray_image = image.copy()
     
-    # Bước 2: Làm mịn NHANH bằng box filter
+    # Cân bằng histogram
+    gray_image = simple_histogram_equalization(gray_image)
+    
+    # Bước 2: Làm mịn 
     update_progress("Đang làm mịn ảnh...")
-    smoothed = fast_blur(gray_image, diameter)
+    smoothed = box_blur(gray_image, size=diameter)
     
-    # Bước 3: Phát hiện biên NHANH
+    # Bước 3: Phát hiện biên 
     update_progress("Đang phát hiện đường nét...")
-    edges = fast_edge_detection(smoothed)
+    edges = sobel_edge_detection(smoothed, blur_sigma=0.5)
     
-    # Bước 4: Kết hợp
+    # Làm mềm edges
+    edges_soft = np.tanh(edges.astype(np.float32) / 60.0) * 255
+    edges_soft = edges_soft.astype(np.uint8)
+    
+    # Bước 4: Kết hợp tạo sketch
     update_progress("Đang tạo hiệu ứng vẽ tay...")
-    sketch = create_soft_sketch(smoothed, edges, edge_strength)
+    sketch = create_soft_sketch(smoothed, edges_soft, edge_strength)
     
     return sketch
 
 
 def pencil_sketch(image: np.ndarray) -> np.ndarray:
-    """
-    Hiệu ứng vẽ bút chì - PHIÊN BẢN TỐI ƯU
-    """
+    # Chuyển xám 
     if image.ndim == 3:
-        gray = high_contrast_grayscale(image)
+        gray = to_grayscale(image)
     else:
         gray = image.copy()
     
     # Tăng contrast
+    gray = high_contrast_grayscale(gray)
     gray = adjust_brightness_contrast(gray, brightness=15, contrast=25)
     
-    # Dodge blend NHANH
+    # Dodge blend với blur
     inverted = 255 - gray
-    blurred = fast_blur(inverted, 21)
+    blurred = gaussian_blur(inverted, size=21, sigma=3.5)
     
     # Dodge blend
     sketch = dodge_blend(gray, blurred)
@@ -62,107 +68,32 @@ def pencil_sketch(image: np.ndarray) -> np.ndarray:
     # Gamma correction
     sketch = np.power(sketch / 255.0, 0.85) * 255.0
     
-    # Thêm texture nhẹ
+    # Thêm texture
     sketch = add_pencil_texture(sketch.astype(np.uint8))
     
     return sketch.astype(np.uint8)
 
 
-def fast_blur(image: np.ndarray, size: int) -> np.ndarray:
-    """
-    Box blur CỰC NHANH - dùng scipy.ndimage.convolve (tối ưu C)
-    
-    Box blur nhanh hơn Gaussian 10-20 lần!
-    """
-    if size % 2 == 0:
-        size += 1
-    
-    # Tạo kernel box đơn giản
-    kernel = np.ones((size, size), dtype=np.float32) / (size * size)
-    
-    # Dùng scipy convolve (written in C, RẤT NHANH)
-    blurred = convolve(image.astype(np.float32), kernel, mode='reflect')
-    
-    return np.clip(blurred, 0, 255).astype(np.uint8)
-
-
-def fast_edge_detection(image: np.ndarray) -> np.ndarray:
-    """
-    Phát hiện biên Sobel NHANH - dùng scipy convolve
-    """
-    # Kernel Sobel
-    sobel_x = np.array([[-1, 0, 1],
-                        [-2, 0, 2],
-                        [-1, 0, 1]], dtype=np.float32)
-    
-    sobel_y = np.array([[-1, -2, -1],
-                        [ 0,  0,  0],
-                        [ 1,  2,  1]], dtype=np.float32)
-    
-    # Dùng scipy convolve (C implementation)
-    img_float = image.astype(np.float32)
-    gradient_x = convolve(img_float, sobel_x, mode='reflect')
-    gradient_y = convolve(img_float, sobel_y, mode='reflect')
-    
-    # Tính magnitude
-    gradient_magnitude = np.sqrt(gradient_x**2 + gradient_y**2)
-    
-    # Chuẩn hóa bằng tanh (soft)
-    edges_soft = np.tanh(gradient_magnitude / 60.0) * 255
-    
-    return np.clip(edges_soft, 0, 255).astype(np.uint8)
-
-
-def balanced_grayscale(image: np.ndarray) -> np.ndarray:
-    """Chuyển ảnh xám NHANH với NumPy vectorization"""
-    if image.ndim == 3:
-        # Vectorized operation - RẤT NHANH
-        gray = np.dot(image[..., :3], [0.299, 0.587, 0.114])
-    else:
-        gray = image.copy()
-    
-    # Histogram equalization đơn giản
-    gray = simple_histogram_equalization(gray)
-    
-    return np.clip(gray, 0, 255).astype(np.uint8)
-
-
-def high_contrast_grayscale(image: np.ndarray) -> np.ndarray:
-    """Chuyển xám contrast cao NHANH"""
-    if image.ndim == 3:
-        gray = np.dot(image[..., :3], [0.299, 0.587, 0.114])
-    else:
-        gray = image.copy()
-    
-    # Tăng contrast - vectorized
+def high_contrast_grayscale(gray: np.ndarray) -> np.ndarray:
+    # Tăng contrast cho ảnh xám
     gray = gray.astype(np.float32)
     mean = np.mean(gray)
     gray = (gray - mean) * 1.8 + mean
-    
     return np.clip(gray, 0, 255).astype(np.uint8)
 
 
 def simple_histogram_equalization(image: np.ndarray) -> np.ndarray:
-    """
-    Histogram equalization ĐƠN GIẢN và NHANH
-    """
-    # Tính histogram
+    # Cân bằng histogram
     hist, bins = np.histogram(image.flatten(), 256, [0, 256])
-    
-    # CDF
     cdf = hist.cumsum()
     cdf_normalized = cdf * 255 / cdf[-1]
-    
-    # Ánh xạ - vectorized
     image_equalized = np.interp(image.flatten(), bins[:-1], cdf_normalized)
-    
     return image_equalized.reshape(image.shape).astype(np.uint8)
 
 
 def create_soft_sketch(smoothed: np.ndarray, edges: np.ndarray,
                       edge_strength: float) -> np.ndarray:
-    """Kết hợp sketch - NHANH với vectorization"""
-    # Vectorized operations
+    # Kết hợp tạo sketch mềm mại
     edges_norm = edges.astype(np.float32) / 255.0
     edges_adjusted = np.power(edges_norm, 1.2) * edge_strength * 0.7
     
@@ -180,11 +111,10 @@ def create_soft_sketch(smoothed: np.ndarray, edges: np.ndarray,
 
 
 def dodge_blend(base: np.ndarray, blend: np.ndarray) -> np.ndarray:
-    """Dodge blend NHANH - vectorized"""
+    # Dodge blending mode
     base_float = base.astype(np.float32)
     blend_float = blend.astype(np.float32)
     
-    # Vectorized operation
     result = np.divide(base_float * 255.0, 255.0 - blend_float + 1e-6)
     result = np.clip(result, 0, 255)
     
@@ -192,14 +122,12 @@ def dodge_blend(base: np.ndarray, blend: np.ndarray) -> np.ndarray:
 
 
 def add_pencil_texture(image: np.ndarray) -> np.ndarray:
-    """Thêm texture - NHANH"""
+    # Thêm texture bút chì
     h, w = image.shape
     
-    # Noise vectorized
     noise = np.random.normal(0, 4, (h, w)).astype(np.float32)
     textured = np.clip(image.astype(np.float32) + noise, 0, 255)
     
-    # Gamma correction vectorized
     textured = np.power(textured / 255.0, 0.92) * 255
     
     return textured.astype(np.uint8)
@@ -207,7 +135,7 @@ def add_pencil_texture(image: np.ndarray) -> np.ndarray:
 
 def adjust_brightness_contrast(image: np.ndarray, brightness: float = 0, 
                                contrast: float = 0) -> np.ndarray:
-    """Điều chỉnh brightness/contrast - NHANH"""
+        # Điều chỉnh brightness và contrast
     image = image.astype(np.float32)
     
     if brightness != 0:
