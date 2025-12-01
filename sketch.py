@@ -122,7 +122,7 @@ def dodge_blend(base: np.ndarray, blend: np.ndarray) -> np.ndarray:
 
 
 def add_pencil_texture(image: np.ndarray) -> np.ndarray:
-    # Thêm texture bút chì
+    """Thêm texture bút chì"""
     h, w = image.shape
     
     noise = np.random.normal(0, 4, (h, w)).astype(np.float32)
@@ -135,7 +135,7 @@ def add_pencil_texture(image: np.ndarray) -> np.ndarray:
 
 def adjust_brightness_contrast(image: np.ndarray, brightness: float = 0, 
                                contrast: float = 0) -> np.ndarray:
-        # Điều chỉnh brightness và contrast
+    """Điều chỉnh brightness và contrast"""
     image = image.astype(np.float32)
     
     if brightness != 0:
